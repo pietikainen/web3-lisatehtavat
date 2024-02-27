@@ -1,0 +1,28 @@
+CREATE DATABASE IF NOT EXISTS YRITYS;
+USE YRITYS;
+
+CREATE TABLE TOIMIALA (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    selite VARCHAR(255) NOT NULL,
+    lyhenne VARCHAR(10) NOT NULL
+);
+
+CREATE TABLE YRITYS (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nimi VARCHAR(255) NOT NULL,
+    y_tunnus VARCHAR(20) NOT NULL,
+    osoite VARCHAR(255) NOT NULL,
+    toimiala_id INT,
+    status INT DEFAULT 0,
+    FOREIGN KEY (toimiala_id) REFERENCES TOIMIALA(id)
+);
+
+CREATE TABLE TILAUS (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    yritys_id INT,
+    veroton_hinta DECIMAL(10, 2) NOT NULL,
+    toimituspvm DATE NOT NULL,
+    otsikko VARCHAR(255),
+    vero_prosentti INT,
+    FOREIGN KEY (yritys_id) REFERENCES YRITYS(id)
+);
