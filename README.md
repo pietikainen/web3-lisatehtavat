@@ -1,5 +1,9 @@
 # web3-lisatehtavat
-Savonia AMK - Web-ohjelmointi 3 - lisätehtävät
+Savonia AMK - Web-ohjelmointi 3
+
+Yksinkertainen REST API kuvitteellisella yritys/tilaus-tietokannalla.
+
+Taikasanoja: JavaScript, Node, Express, SQL
 
 ---
 
