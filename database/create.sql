@@ -14,7 +14,8 @@ CREATE TABLE YRITYS (
     osoite VARCHAR(255) NOT NULL,
     toimiala_id INT,
     status INT DEFAULT 0,
-    FOREIGN KEY (toimiala_id) REFERENCES TOIMIALA(id)
+    FOREIGN KEY (toimiala_id) REFERENCES TOIMIALA(id),
+    INDEX (toimiala_id)
 );
 
 CREATE TABLE TILAUS (

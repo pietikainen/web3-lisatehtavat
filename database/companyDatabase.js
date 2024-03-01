@@ -1,5 +1,5 @@
 const mysql = require('mysql');
-const { formatYtunnus } = require('../controllers/companyController');
+const ctrl = require('../controllers/companyController');
 
 // Define connection parameters for MySQL
 let connection = mysql.createConnection({
@@ -32,7 +32,6 @@ module.exports = {
       -  the count of orders, the sum of untaxed prices and the sum of taxed prices
     Tasks L1-L3.
     */
-
     getCompany: ({ nimi, y_tunnus, toimiala }) => {
         let query = `
         SELECT 
@@ -50,27 +49,27 @@ module.exports = {
         LEFT JOIN 
             toimiala t ON y.toimiala_id = t.id
         LEFT JOIN 
-            tilaus ON y.id = tilaus.yritys_id`;
+            tilaus ON y.id = tilaus.yritys_id
+        WHERE 1`;
 
-        if (nimi || y_tunnus || toimiala) {
-            query += ' WHERE';
+        const conditions = [];
 
-            if (nimi) {
-                query += ` nimi LIKE '${nimi}%'`;
-            }
+        (nimi) ? conditions.push('y.nimi LIKE ?') : null;
+        (y_tunnus) ? conditions.push('y.y_tunnus = ?') : null;
+        (toimiala) ? conditions.push('y.toimiala_id = ?') : null;
 
-            if (y_tunnus) {
-                query += ` y_tunnus = '${formatYtunnus(y_tunnus)}'`;
-            }
-
-            if (toimiala) {
-                query += ` toimiala_id = '${toimiala}'`;
-            }
+        if (conditions.length > 0){
+            query += ` AND ${conditions.join(' AND ')}`;
         }
+
         query += ' GROUP BY y.id';
 
-        console.log('query: ' + query);
-        return executeSQL(query, null);
+        const params = [];
+        (nimi) ? params.push(`${nimi}%`) : null;
+        (y_tunnus) ? params.push(y_tunnus) : null;
+        (toimiala) ? params.push(toimiala) : null;
+
+        return executeSQL(query, params);
     },
 
     /*
@@ -80,16 +79,13 @@ module.exports = {
     Does not update the status if the company has orders in DB.
     Task L5
     */
-
     deleteCompany: (id) => {
         let query = `
         UPDATE yritys
         SET status = 1
-        WHERE id = ?
-        AND id NOT IN (SELECT yritys_id FROM TILAUS WHERE yritys_id = ?);`;
+        WHERE id = ?;`;
 
-        console.log('query: ' + query);
-        return executeSQL(query, [id, id]);
+        return executeSQL(query, [id]);
     },
 
     /* DELETE /api/company/:id/:params
@@ -98,7 +94,6 @@ module.exports = {
     Param = 0: Remove company from being active by updating status 0 => 1.
     Task L6
     */
-
     deleteCompanyAndOrders: async (id) => {
         try {
             await executeSQL('START TRANSACTION;');
@@ -111,11 +106,22 @@ module.exports = {
         }             
     },
 
+    getAmountOfOrdersByCompany: async (id) => {
+        try {
+            let result = await executeSQL('SELECT COUNT(*) AS lukumaara FROM tilaus WHERE yritys_id = ?;', [id]);
+            return result[0].lukumaara;
+            
+        } catch (err) {
+            throw err;
+        }
+    },
+
+
+
     /* POST: /api/order
 
     Add company and it's orders to the database.
     */
-
     addCompanyAndOrders: async (company, orders) => {
         try {
             await executeSQL('START TRANSACTION;');
@@ -130,8 +136,51 @@ module.exports = {
             await executeSQL('ROLLBACK;');
             throw err;
         }
+    },
+        
+    // compare given id to the amount of existing business areas
+    // to determine if the id is valid
+    compareToExistingBusinessAreas: async (id) => {
+        try {
+            console.log("compareToExistingBusinessAreas: id:", id, "typeof id:", typeof id);
+            let result = await executeSQL('SELECT COUNT(*) AS lukumaara FROM toimiala;');
+            console.log("result.lukumnaara: ", result[0].lukumaara);
+            console.log("number(id): ", id);
+            if (result[0].lukumaara < id || id < 1) {
+                return false;
+            } else {
+                return true;
+            }
+        } catch (err) {
+            throw err;
+        }
+    },
+
+
+    /* PUT: /api/order/:id
+
+    Update order in the database.
+    Incoming parameter tilaus_id and [{tilaus_id: 123, toimituspvm: 2021-05-05}].
+    Takes n * tilaus_id and toimituspvm pairs.
+    */
+    updateOrder: async (id, order) => {
+        try {
+            await executeSQL('UPDATE tilaus SET toimituspvm = ? WHERE id = ? AND yritys_id = ?;',
+                [order.toimituspvm, order.tilausid, id]);       
+            } catch (err) {
+            console.log(err);
+            throw err;
+        }
+    },
+
+    // Get orders (id && toimituspvm) by company id in JSON
+    getOrder: async (id) => {
+        try {
+            let result = await executeSQL('SELECT id, toimituspvm FROM tilaus WHERE id = ?;', [id]);
+            return result;
+        } catch (err) {
+            throw err;
+        }
     }
-
-
 
 }

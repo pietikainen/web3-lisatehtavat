@@ -16,7 +16,7 @@ function formatYtunnus(ytunnus) {
         }
     }
 }
-
+// Validate y-tunnus format. 7 digits, hyphen and a single digit
 const validateYtunnus = (ytunnus) => {
     let regex = /^[0-9]{7}-[0-9]{1}$/;
     return regex.test(ytunnus);
@@ -24,60 +24,43 @@ const validateYtunnus = (ytunnus) => {
 // Y-tunnus validation methods end here
 
 
-// Validate company data
-function checkCompanyDataEntriesExists(company) {
-    // Check if values are present
+// Validate company data and return boolean and error message
+async function checkCompanyDataEntriesExists(company) {
     let fieldsNotValid = [];
-    if (!company.nimi || !company.y_tunnus || !company.osoite || !company.toimiala_id) {
-        (!company.nimi) ? fieldsNotValid.push('nimi') : null;
-        (!company.osoite) ? fieldsNotValid.push('osoite') : null;
-        (!company.y_tunnus) ? fieldsNotValid.push('y_tunnus') : null;
-        (!company.toimiala_id) ? fieldsNotValid.push('toimiala_id') : null;
+
+    (!company.nimi) ? fieldsNotValid.push('nimi') : null;
+    (!company.osoite) ? fieldsNotValid.push('osoite') : null;
+    if (!company.y_tunnus || !validateYtunnus(company.y_tunnus)) {
+        fieldsNotValid.push('y_tunnus');
+    }
+    if (!company.toimiala_id || !await sql.compareToExistingBusinessAreas(company.toimiala_id)) {
+        fieldsNotValid.push('toimiala_id');
     }
 
-    // Check if values are formatted correctly
-    (!validateYtunnus(company.y_tunnus)) ? fieldsNotValid.push('Virheellinen Y-tunnus') : null;
-    (company.toimiala_id < 1 || company.toimiala_id > 6) ? fieldsNotValid.push('Virheellinen toimiala') : null;
-
-    return (fieldsNotValid.length > 0) ? [false, `Seuraavissa kentissä oli virheelliset arvot: ${fieldsNotValid.join(",")}`] : [true, null];
+    return (fieldsNotValid.length > 0) ? [false, `Seuraavissa kentissä oli väärät arvot: ${fieldsNotValid.join(",")}`] : [true, null];
 }
 
-// Validate order data
-function checkOrderDataEntriesExists(order) {
-    // Check if values are present
-
-    let fieldsNotFound = [];
+// Validate order data and return boolean and error message
+async function checkOrderDataEntriesExists(order) {
     let fieldsNotValid = [];
 
     // Loop through multiple orders
     for (let i = 0; i < order.length; i++) {
         const singleOrder = order[i];
 
-        (!singleOrder.veroton_hinta) ? fieldsNotFound.push(`veroton_hinta`) : null;
-        (!singleOrder.toimituspvm) ? fieldsNotFound.push(`toimituspvm`) : null;
-        (!singleOrder.vero_prosentti) ? fieldsNotFound.push(`vero_prosentti`) : null;
-
-        // Check if values are formatted correctly
-        (singleOrder.veroton_hinta < 0 || typeof singleOrder.veroton_hinta !== 'number') ? fieldsNotValid.push(`Virheellinen veroton hinta`) : null;
-        (singleOrder.vero_prosentti < 0 || typeof singleOrder.vero_prosentti !== 'number') ? fieldsNotValid.push(`Virheellinen veroprosentti`) : null;
-        (!isValidDateFormat(singleOrder.toimituspvm)) ? fieldsNotValid.push(`Virheellinen toimituspvm`) : null;
+        (!singleOrder.veroton_hinta || singleOrder.veroton_hinta < 0) ? fieldsNotValid.push(`veroton_hinta`) : null;
+        (!singleOrder.toimituspvm || !isValidDateFormat(singleOrder.toimituspvm)) ? fieldsNotValid.push(`toimituspvm`) : null;
+        (!singleOrder.vero_prosentti || singleOrder.vero_prosentti < 0) ? fieldsNotValid.push(`vero_prosentti`) : null;
     }
 
-    if (fieldsNotFound.length > 0) {
-        return [false, `Seuraavissa kentissä oli virheelliset arvot: ${fieldsNotFound.join(",")}`];
-    } else if (fieldsNotValid.length > 0) {
-        return [false, `Seuraavissa kentissä oli virheelliset arvot: ${fieldsNotValid.join(",")}`];
-    } else {
-        return [true, null];
-    }
+    return (fieldsNotValid.length > 0) ? [false, `Seuraavissa kentissä oli väärät arvot: ${fieldsNotValid.join(",")}`] : [true, null];
 }
 
+// Check if date is in valid format
 function isValidDateFormat(date) {
     const regex = /^\d{4}-\d{2}-\d{2}$/;
     return regex.test(date);
 }
-
-
 
 module.exports = {
 
@@ -85,10 +68,9 @@ module.exports = {
         All companies with given parameters ('nimi', 'y-tunnus', 'toimiala')
         Or all companies if no parameters are given
     */
-
     getCompany: async (req, res) => {
         try {
-            let all = req.query.all;
+            (req.query.y_tunnus) ? req.query.y_tunnus = formatYtunnus(req.query.y_tunnus) : null;
             let c = await sql.getCompany(req.query);
             res.status(200).json(c);
         } catch (err) {
@@ -102,18 +84,21 @@ module.exports = {
         param = 0: set the company as inactive in DB => yritys.status = 1
         if no parameter is given, treats it as param = 0.
     */
-
     deleteCompany: async (req, res) => {
         try {
-            let id = req.params.id;
-            let param = req.params.param || '0';
+            const id = req.params.id;
+            let param = (req.params.param) ? Number(req.params.param) : 0;
 
-            if (param === '1') {
+            if (param === 1) {
                 await sql.deleteCompanyAndOrders(id);
-                res.status(200).json({ message: 'Yritys ja tilaukset poistettu tietokannasta onnistuneesti.' });
+                res.status(200).json({ message: 'Yritys ja tilaukset poistettu (forced) tietokannasta onnistuneesti.' });
             } else {
+                const ordersQuery = await sql.getAmountOfOrdersByCompany(id);
+                if (ordersQuery > 0) {
+                    return res.status(400).json({ error: 'Yrityksellä on tilauksia, joten sitä ei voida inaktivoida.' });
+                }
                 await sql.deleteCompany(id);
-                res.status(200).json({ message: 'Yritys muutettu inaktiiviseksi tietokannassa.' });
+                res.status(200).json({ message: 'Yritys muutettu inaktiiviseksi tietokannassa. (0 => 1)' });
             }
         } catch (err) {
             console.error(err);
@@ -126,12 +111,11 @@ module.exports = {
         Add company and it's orders to the database
         L7
     */
-
     addCompanyAndOrders: async (req, res) => {
         try {
             const { yritys, tilaus } = req.body;
-            const [companyBool, companyError] = checkCompanyDataEntriesExists(yritys);
-            const [orderBool, orderError] = checkOrderDataEntriesExists(tilaus);
+            const [companyBool, companyError] = await checkCompanyDataEntriesExists(yritys);
+            const [orderBool, orderError] = await checkOrderDataEntriesExists(tilaus);
 
             if (!companyBool) {
                 return res.status(400).json({ error: companyError });
@@ -152,8 +136,54 @@ module.exports = {
             console.error(err);
             res.status(500).json({ error: 'Internal server error', message: err.message });
         }
+    },
+
+
+    /* PUT: /api/order/:id
+ 
+        Update order from company with given id
+        L8 + L9 + L10
+    */
+    updateOrder: async (req, res) => {
+        try {
+            const id = req.params.id;
+            const orders = req.body;
+            const currentDate = new Date(Date.now());
+
+            if (!id || !req.body) {
+                return res.status(400).json({ error: 'Tilaus tai yrityksen id puuttuu.' });
+            }
+
+            ordersToPush = [];
+            updatedOrderInfo = [];
+            for (let order of orders) {
+                const originalOrder = await sql.getOrder(order.tilausid);
+
+                if (originalOrder[0].toimituspvm > currentDate) {
+                    ordersToPush.push(order);
+                    updatedOrderInfo.push({
+                        tilausid: order.tilausid,
+                        toimituspvm_original: originalOrder[0].toimituspvm,
+                        toimituspvm_uusi: order.toimituspvm,
+
+                    });
+                } else {
+                    console.log('Tilausta ei voida päivittää, koska tilaus on jo toimitettu.');
+                }
+            }
+            
+            if (ordersToPush.length === 0) {
+                return res.status(400).json({ error: 'Kaikki tilaukset on jo toimitettu. Muutoksia ei voi tehdä.' });
+            } else {
+                for (let order of ordersToPush) {
+                    await sql.updateOrder(id, order);
+                }
+                res.status(200).json({ updatedOrderInfo });
+            }
+            
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: 'Internal server error', message: err.message });
+        }
     }
-
 }
-
-
