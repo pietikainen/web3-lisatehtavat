@@ -9,7 +9,7 @@ Taikasanoja: JavaScript, Node, Express, SQL
 
 ## Käytettävät reitit API:ssa
 > ###GET: /api/company
-
+L1-L3
 Palauttaa yritykset annetuilla query-parametreilla (nimi, y_tunnus, toimiala_id), tai niiden puuttuessa palauttaa kaikki yritykset.
 
 - nimi (tai nimen alkuosa)
@@ -31,12 +31,12 @@ Palauttaa yritykset annetuilla query-parametreilla (nimi, y_tunnus, toimiala_id)
 ```
 
 Ilman parametreja haku palauttaa kaikki yritykset.
-L1-L3
+
 
 ---
 
 > ###DELETE: /api/company/:id/:param
-
+L5-L6
 
 - Parametri '1': 
     - Poistaa yrityksen ja siihen liittyvät tilaukset tietokannasta "oikeasti".
@@ -55,12 +55,12 @@ L1-L3
 }
 ```
 
-L5-L6
+
 
 ---
 
 > ###POST: /api/order
-
+L7
 Ottaa vastaan JSON-muotoisen bodylohkon, sisältäen yrityksen ja tilaukset.
 Tilauksia voi olla yksi tai useampi.
 
@@ -109,6 +109,7 @@ Palauttaa tarvittaessa virheilmoituksia.
 ```
 
 > ### PUT: /api/order/:id
+> L8-L10
 Päivittää yrityksen tilausten toimituspäivämääräksi parametrina annetun päivämäärän (yyyy-mm-dd).
 Ottaa vastaan yhden tai useampia tilauksia.
 
