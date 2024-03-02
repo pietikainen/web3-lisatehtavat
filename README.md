@@ -58,8 +58,6 @@ L5-L6
 }
 ```
 
-
-
 ---
 
 > ### POST: /api/order
@@ -112,6 +110,8 @@ Palauttaa tarvittaessa virheilmoituksia.
     "error": "Seuraavissa kentissä oli virheelliset arvot: Virheellinen veroton hinta,Virheellinen veroprosentti"
 }
 ```
+
+---
 
 > ### PUT: /api/order/:id
 
