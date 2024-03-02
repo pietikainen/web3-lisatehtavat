@@ -39,7 +39,7 @@ Ilman parametreja haku palauttaa kaikki yritykset.
 
 > ###DELETE: /api/company/:id/:param
 
-L1-L3
+L5-L6
 
 - Parametri '1': 
     - Poistaa yrityksen ja siihen liittyvät tilaukset tietokannasta "oikeasti".
