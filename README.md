@@ -8,7 +8,7 @@ Taikasanoja: JavaScript, Node, Express, SQL
 ---
 
 ## Käytettävät reitit API:ssa
-> ###GET: /api/company
+> ### GET: /api/company
 
 L1-L3
 
@@ -37,7 +37,7 @@ Ilman parametreja haku palauttaa kaikki yritykset.
 
 ---
 
-> ###DELETE: /api/company/:id/:param
+> ### DELETE: /api/company/:id/:param
 
 L5-L6
 
@@ -62,7 +62,7 @@ L5-L6
 
 ---
 
-> ###POST: /api/order
+> ### POST: /api/order
 
 L7
 
